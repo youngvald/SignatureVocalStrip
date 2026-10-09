@@ -4,13 +4,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout SignatureVocalStripAudioProc
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("Body", "Body", 0.0f, 100.0f, 50.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("Clarity", "Clarity", 0.0f, 100.0f, 50.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("DeEsser", "De-Esser", 0.0f, 100.0f, 50.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("WallComp", "Wall Comp", 0.0f, 100.0f, 50.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("OptoGlue", "Opto Glue", 0.0f, 100.0f, 50.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("AirExciter", "Air Exciter", 0.0f, 100.0f, 50.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("Output", "Output", -12.0f, 12.0f, 0.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"Body", 1}, "Body", 0.0f, 100.0f, 50.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"Clarity", 1}, "Clarity", 0.0f, 100.0f, 50.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"DeEsser", 1}, "De-Esser", 0.0f, 100.0f, 50.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"WallComp", 1}, "Wall Comp", 0.0f, 100.0f, 50.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"OptoGlue", 1}, "Opto Glue", 0.0f, 100.0f, 50.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"AirExciter", 1}, "Air Exciter", 0.0f, 100.0f, 50.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"Output", 1}, "Output", -12.0f, 12.0f, 0.0f));
 
     return { params.begin(), params.end() };
 }
@@ -28,7 +28,7 @@ void SignatureVocalStripAudioProcessor::prepareToPlay (double sampleRate, int sa
 {
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
-    spec.maximumBlockSize = samplesPerBlock;
+    spec.maximumBlockSize = (juce::uint32) samplesPerBlock;
     spec.numChannels = 2;
 
     claWallComp.prepare(spec);
@@ -43,7 +43,6 @@ void SignatureVocalStripAudioProcessor::prepareToPlay (double sampleRate, int sa
     optoComp.setRatio(3.2f);
     optoComp.setThreshold(-22.0f);
 
-    // Filters initial setup
     auto sr = (float)sampleRate;
     auto hpCoeff = Coefficients::makeHighPass(sr, 3500.0f, 0.707f);
     aphexHpL.coefficients = hpCoeff; aphexHpR.coefficients = hpCoeff;
@@ -60,7 +59,8 @@ void SignatureVocalStripAudioProcessor::prepareToPlay (double sampleRate, int sa
     auto qHp = Coefficients::makeHighPass(sr, 60.0f, 0.707f);
     proQHpL.coefficients = qHp; proQHpR.coefficients = qHp;
 
-    auto qB2 = Coefficients::makePeakFilter(sr, 1282.8f, 2.929f, juproQBand2L.coefficients = qB2; proQBand2R.coefficients = qB2;
+    auto qB2 = Coefficients::makePeakFilter(sr, 1282.8f, 2.929f, juce::Decibels::decibelsToGain(3.07f));
+    proQBand2L.coefficients = qB2; proQBand2R.coefficients = qB2;
 
     auto qB3 = Coefficients::makePeakFilter(sr, 2262.5f, 2.929f, juce::Decibels::decibelsToGain(3.54f));
     proQBand3L.coefficients = qB3; proQBand3R.coefficients = qB3;
@@ -74,7 +74,8 @@ void SignatureVocalStripAudioProcessor::prepareToPlay (double sampleRate, int sa
     auto eqLf = Coefficients::makePeakFilter(sr, 841.0f, 2.20f, juce::Decibels::decibelsToGain(2.58f));
     proEqLfL.coefficients = eqLf; proEqLfR.coefficients = eqLf;
 
-    auto eqMf = Coefficients::makePeakFilter(sr, 2590.0f, 4.00f,proEqMfL.coefficients = eqMf; proEqMfR.coefficients = eqMf;
+    auto eqMf = Coefficients::makePeakFilter(sr, 2590.0f, 4.00f, juce::Decibels::decibelsToGain(-4.32f));
+    proEqMfL.coefficients = eqMf; proEqMfR.coefficients = eqMf;
 
     auto eqLmf = Coefficients::makePeakFilter(sr, 5410.0f, 6.10f, juce::Decibels::decibelsToGain(-4.80f));
     proEqLmfL.coefficients = eqLmf; proEqLmfR.coefficients = eqLmf;
@@ -82,8 +83,7 @@ void SignatureVocalStripAudioProcessor::prepareToPlay (double sampleRate, int sa
 
 void SignatureVocalStripAudioProcessor::releaseResources() {}
 
-void SignatureVocalStripAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
-{
+void SignatureVocalStripAudio(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
     juce::ScopedNoDenormals noDenormals;
     auto numChannels = buffer.getNumChannels();
     auto numSamples = buffer.getNumSamples();
@@ -157,6 +157,11 @@ void SignatureVocalStripAudioProcessor::processBlock (juce::AudioBuffer<float>& 
         left[i]  = std::clamp(sL * outGain, -1.0f, 1.0f);
         right[i] = std::clamp(sR * outGain, -1.0f, 1.0f);
     }
+}
+
+bool SignatureVocalStripAudioProcessor::hasEditor() const
+{
+    return true;
 }
 
 juce::AudioProcessorEditor* SignatureVocalStripAudioProcessor::createEditor()
